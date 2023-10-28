@@ -5,6 +5,7 @@ import cv2
 import pandas as pd
 import face_recognition
 import os
+from streamlit_webrtc import webrtc_streamer, RTCConfiguration
 
 global PATH_DATA
 
@@ -225,20 +226,20 @@ def load_known_data():
     return (DB["name"].values, DB[COLS_ENCODE].values)
 
 
-def capture_face(video_capture):
+def capture_face(webrtc_streamer):
     # got 3 frames to auto adjust webcam light
     for i in range(3):
-        video_capture.read()
+        webrtc_streamer.read()
 
     while True:
-        ret, frame = video_capture.read()
+        ret, frame = webrtc_streamer.read()
         FRAME_WINDOW.image(frame[:, :, ::-1])
         # face detection
         small_frame = cv2.resize(frame, (0, 0), fx=0.25, fy=0.25)
         rgb_small_frame = np.ascontiguousarray(small_frame[:, :, ::-1])
         face_locations = face_recognition.face_locations(rgb_small_frame)
         if len(face_locations) > 0:
-            video_capture.release()
+            webrtc_streamer.release()
             return frame
 
 
@@ -273,11 +274,14 @@ def recognize_frame(frame):
         return name, similarity, np.ascontiguousarray(frame[:, :, ::-1])
 
 
+# webrtc_streamer(key="key", video_frame_callback=recognize_frame)
+
+
 if __name__ == "__main__":
     while True:
         known_face_names, known_face_encodings = load_known_data()
-        video_capture = cv2.VideoCapture(WEBCAMNUM)
-        frame = capture_face(video_capture)
+        webrtc_streamer = cv2.VideoCapture(WEBCAMNUM)
+        frame = capture_face(webrtc_streamer)
         name, similarity, frame = recognize_frame(frame)
         FRAME_WINDOW.image(frame)
         if similarity > 0.75:
@@ -286,3 +290,11 @@ if __name__ == "__main__":
             break
     # press to restart the scripts
     st.button("Continue...")
+
+# webrtc_streamer(
+#     key="key",
+#     video_frame_callback=recognize_frame,
+#     rtc_configurationRT=RTCConfiguration(
+#         {"iceServers": [{"urls": ["stun:stun.l.google.com:19302"]}]}  # Add this line
+#     ),
+# )
